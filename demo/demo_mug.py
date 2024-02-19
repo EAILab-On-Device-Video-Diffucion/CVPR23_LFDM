@@ -1,6 +1,15 @@
+import yaml
+with open('./../config.yaml', 'rb') as f:
+    config = yaml.safe_load(f)
+
+ROOT_PATH   = config['root_path']
+DM_PATH     = config['dm_mug_path']
+LFAE_PATH   = config['lfae_mug_path']
+CONFIG_PATH = f"{ROOT_PATH}/config/mug128.yaml"
+
 # demo on MUG dataset
 import sys
-sys.path.append("/workspace/code/CVPR23_LFDM")  # change this to your code directory
+sys.path.append(ROOT_PATH)  # change this to your code directory
 import argparse
 
 import imageio
@@ -19,22 +28,16 @@ import cv2
 import matplotlib.pyplot as plt
 
 start = timeit.default_timer()
-root_dir = '/data/hfn5052/text2motion/cvpr23/demo_mug'
-GPU = "2"
+GPU = "0"
 postfix = "-j-sl-random-of-tr-rmm"
 INPUT_SIZE = 128
 N_FRAMES = 40
-RANDOM_SEED = 1234
 MEAN = (0.0, 0.0, 0.0)
-cond_scale = 1.
-# downloaded the pretrained DM model and put its path here
-RESTORE_FROM = "/data/hfn5052/text2motion/videoflowdiff_mug/snapshots-j-sl-random-of-tr-rmm/flowdiff_0005_S111600.pth"
-# downloaded the pretrained LFAE model and put its path here
-AE_RESTORE_FROM = "/data/hfn5052/text2motion/RegionMM/log-mug/mug128/snapshots/RegionMM_0100_S046500.pth"
-config_path = "/workspace/code/CVPR23_LFDM/config/mug128.yaml"
-CKPT_DIR = os.path.join(root_dir, "demo"+postfix)
+cond_scale      = 1.
+RESTORE_FROM    = DM_PATH       # downloaded the pretrained DM model and put its path here
+AE_RESTORE_FROM = LFAE_PATH     # downloaded the pretrained LFAE model and put its path here
+CKPT_DIR        = os.path.join(ROOT_PATH, "demo_output", "demo"+postfix)
 os.makedirs(CKPT_DIR, exist_ok=True)
-print(root_dir)
 print(postfix)
 print("RESTORE_FROM:", RESTORE_FROM)
 print("AE_RESTORE_FROM:", AE_RESTORE_FROM)
@@ -49,15 +52,12 @@ def get_arguments():
     """
     parser = argparse.ArgumentParser(description="Flow Diffusion")
     parser.add_argument("--num-workers", default=8)
-    parser.add_argument("--gpu", default=GPU,
-                        help="choose gpu device.")
-    parser.add_argument('--print-freq', '-p', default=10, type=int,
-                        metavar='N', help='print frequency')
-    parser.add_argument("--input-size", type=str, default=INPUT_SIZE,
-                        help="Comma-separated string with height and width of images.")
-    parser.add_argument("--random-seed", type=int, default=RANDOM_SEED,
-                        help="Random seed to have reproducible results.")
+    parser.add_argument("--gpu", default=GPU, help="choose gpu device.")
+    parser.add_argument('--print-freq', '-p', default=10, type=int, metavar='N', help='print frequency')
+    parser.add_argument("--input-size", type=str, default=INPUT_SIZE, help="Comma-separated string with height and width of images.")
+    parser.add_argument("--random-seed", type=int, default=42, help="Random seed to have reproducible results.")
     parser.add_argument("--restore-from", default=RESTORE_FROM)
+    parser.add_argument("--n_frames", type=int, default=N_FRAMES)
     parser.add_argument("--fp16", default=False)
     return parser.parse_args()
 
@@ -85,7 +85,7 @@ def main():
 
     model = FlowDiffusion(is_train=True,
                           sampling_timesteps=1000,
-                          config_pth=config_path,
+                          config_pth=CONFIG_PATH,
                           pretrained_pth=AE_RESTORE_FROM)
     model.cuda()
 
@@ -107,7 +107,7 @@ def main():
     exp_list = ['anger', 'disgust', 'fear', 'happiness',
                 'neutral', 'sadness', 'surprise']
 
-    ref_img_path = "/workspace/code/CVPR23_LFDM/demo/mug_examples/img_0000.jpg"
+    ref_img_path = f"{ROOT_PATH}/demo/mug_examples/img_0000.jpg"
     print("input image:", ref_img_path)
     ref_img_name = os.path.basename(ref_img_path)[:-4]
     ref_img_npy = imageio.v2.imread(ref_img_path)[:, :, :3]
@@ -118,7 +118,7 @@ def main():
     ref_img = ref_img.permute(2, 0, 1).float()
     ref_imgs = ref_img.unsqueeze(dim=0).cuda()
 
-    nf = 40
+    nf = args.n_frames
     cnt = 0
     for ref_text in exp_list:
         model.set_sample_input(sample_img=ref_imgs, sample_text=[ref_text])

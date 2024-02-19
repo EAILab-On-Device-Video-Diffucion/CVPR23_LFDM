@@ -1,0 +1,11 @@
+root_path: /workspace/CVPR23_LFDM
+data_path: /workspace/shared/data
+
+# pre_trained model path
+dm_mhad_path: /workspace/CVPR23_LFDM/pre_trained_model/DM_MHAD.pth
+dm_mug_path: /workspace/CVPR23_LFDM/pre_trained_model/DM_MUG.pth
+dm_natops_path: /workspace/CVPR23_LFDM/pre_trained_model/DM_NATOPS.pth
+
+lfae_mhad_path: /workspace/CVPR23_LFDM/pre_trained_model/LFAE_MHAD.pth
+lfae_mug_path: /workspace/CVPR23_LFDM/pre_trained_model/LFAE_MUG.pth
+lfae_natops_path: /workspace/CVPR23_LFDM/pre_trained_model/LFAE_NATOPS.pth

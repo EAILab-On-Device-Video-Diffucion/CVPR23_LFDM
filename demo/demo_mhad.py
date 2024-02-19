@@ -1,5 +1,14 @@
+import yaml
+with open('./../config.yaml', 'rb') as f:
+    config = yaml.safe_load(f)
+
+ROOT_PATH   = config['root_path']
+DM_PATH     = config['dm_mhad_path']
+LFAE_PATH   = config['lfae_mhad_path']
+CONFIG_PATH = f"{ROOT_PATH}/config/mhad128.yaml"
+
 import sys
-sys.path.append("/workspace/code/CVPR23_LFDM")  # change this to your code directory
+sys.path.append(ROOT_PATH)  # change this to your code directory
 
 import argparse
 import imageio
@@ -17,23 +26,15 @@ import cv2
 import matplotlib.pyplot as plt
 
 start = timeit.default_timer()
-root_dir = '/data/hfn5052/text2motion/cvpr23/demo_mhad'
-GPU = "1"
-postfix = "-j-sl-random-of-tr-rmm"
-INPUT_SIZE = 128
-N_FRAMES = 40
-RANDOM_SEED = 2222
-MEAN = (0.0, 0.0, 0.0)
-cond_scale = 1.
-# downloaded the pretrained DM model and put its path here
-RESTORE_FROM = "/data/hfn5052/text2motion/videoflowdiff/snapshots-joint-steplr-random-onlyflow-train-regionmm/" \
-               "flowdiff_0006_S086400.pth"
-# downloaded the pretrained LFAE model and put its path here
-AE_RESTORE_FROM = "/data/hfn5052/text2motion/RegionMM/log/mhad128/snapshots/RegionMM_0100_S043100.pth"
-config_pth = "/workspace/code/CVPR23_LFDM/config/mug128.yaml"
-CKPT_DIR = os.path.join(root_dir, "demo"+postfix)
+postfix         = "-j-sl-random-of-tr-rmm"
+INPUT_SIZE      = 128
+N_FRAMES        = 40
+MEAN            = (0.0, 0.0, 0.0)
+cond_scale      = 1.
+RESTORE_FROM    = DM_PATH       # downloaded the pretrained DM model and put its path here
+AE_RESTORE_FROM = LFAE_PATH     # downloaded the pretrained LFAE model and put its path here
+CKPT_DIR        = os.path.join(ROOT_PATH, "demo_output", "demo"+postfix)
 os.makedirs(CKPT_DIR, exist_ok=True)
-print(root_dir)
 print(postfix)
 print("RESTORE_FROM:", RESTORE_FROM)
 print("AE_RESTORE_FROM:", AE_RESTORE_FROM)
@@ -48,15 +49,12 @@ def get_arguments():
     """
     parser = argparse.ArgumentParser(description="Flow Diffusion")
     parser.add_argument("--num-workers", default=8)
-    parser.add_argument("--gpu", default=GPU,
-                        help="choose gpu device.")
-    parser.add_argument('--print-freq', '-p', default=10, type=int,
-                        metavar='N', help='print frequency')
-    parser.add_argument("--input-size", type=str, default=INPUT_SIZE,
-                        help="Comma-separated string with height and width of images.")
-    parser.add_argument("--random-seed", type=int, default=RANDOM_SEED,
-                        help="Random seed to have reproducible results.")
+    parser.add_argument("--gpu", default="0", help="choose gpu device.")
+    parser.add_argument('--print-freq', '-p', default=10, type=int, metavar='N', help='print frequency')
+    parser.add_argument("--input-size", type=str, default=INPUT_SIZE, help="Comma-separated string with height and width of images.")
+    parser.add_argument("--random-seed", type=int, default=42, help="Random seed to have reproducible results.")
     parser.add_argument("--restore-from", default=RESTORE_FROM)
+    parser.add_argument("--n_frames", type=int, default=N_FRAMES)
     parser.add_argument("--fp16", default=False)
     return parser.parse_args()
 
@@ -85,7 +83,7 @@ def main():
     model = FlowDiffusion(is_train=True,
                           sampling_timesteps=1000,
                           pretrained_pth=AE_RESTORE_FROM,
-                          config_pth=config_pth)
+                          config_pth=CONFIG_PATH)
     model.cuda()
 
     if args.restore_from:
@@ -130,7 +128,7 @@ def main():
                    "forward lunge (left foot forward)",
                    "squat"]
 
-    ref_img_path = "/workspace/code/CVPR23_LFDM/demo/mhad_examples/a11_s4_t1_000.png"
+    ref_img_path = f"{ROOT_PATH}/demo/mhad_examples/a11_s4_t1_000.png"
     ref_img_name = os.path.basename(ref_img_path)[:-4]
     ref_img_npy = imageio.v2.imread(ref_img_path)[:, :, :3]
     ref_img_npy = cv2.resize(ref_img_npy, (336, 480), interpolation=cv2.INTER_AREA)
@@ -141,7 +139,7 @@ def main():
     ref_img = ref_img.permute(2, 0, 1).float()
     ref_imgs = ref_img.unsqueeze(dim=0).cuda()
 
-    nf = 40
+    nf = args.n_frames
     cnt = 0
     for ref_text in action_list:
         model.set_sample_input(sample_img=ref_imgs, sample_text=[ref_text])
